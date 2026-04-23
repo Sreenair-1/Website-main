@@ -5,6 +5,7 @@
 - Responsive design
 - RESTful API integration
 - Cross-browser compatibility
+- User feedback system
 
 ## Setup Instructions
 1. Clone the repository:

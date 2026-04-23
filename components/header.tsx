@@ -33,6 +33,9 @@ export function Header() {
           <Link href="/diagnostics" className="transition-colors hover:text-foreground">
             Diagnostics
           </Link>
+          <Link href="/feedback" className="transition-colors hover:text-foreground">
+            Feedback
+          </Link>
           <Link href="/booking" className="transition-colors hover:text-foreground">
             Book consult
           </Link>

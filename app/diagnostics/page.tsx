@@ -18,6 +18,7 @@ export default function DiagnosticsPage() {
   const [submitted, setSubmitted] = useState(false)
   const [result, setResult] = useState<any>(null)
   const [saving, setSaving] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
   if (loading) {
     return (
@@ -47,6 +48,7 @@ export default function DiagnosticsPage() {
   }
 
   const handleSubmit = async () => {
+    setSubmitError('')
     const scoreResult = calculateScore(answers)
     setResult(scoreResult)
 
@@ -70,6 +72,7 @@ export default function DiagnosticsPage() {
       setSubmitted(true)
     } catch (err) {
       console.error('Failed to save result:', err)
+      setSubmitError(err instanceof Error ? err.message : 'Failed to save assessment result')
       setSubmitted(true) // still show results even if save fails
     } finally {
       setSaving(false)
@@ -87,6 +90,12 @@ export default function DiagnosticsPage() {
               <p className="text-muted-foreground mb-8">
                 Based on your responses, here&apos;s your transformation readiness profile
               </p>
+
+              {submitError && (
+                <div className="mb-6 rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+                  We saved your score locally, but Firestore could not store the result: {submitError}
+                </div>
+              )}
 
               {/* Overall Score */}
               <div className="bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg p-8 mb-8 border border-primary/20">

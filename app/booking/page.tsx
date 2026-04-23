@@ -5,7 +5,8 @@ import { useAuth } from '@/providers/auth-provider'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
-import { createClient } from '@/lib/supabase'
+import { db } from '@/lib/firebase'
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import Link from 'next/link'
 import { Calendar, Clock, User, Mail, Phone, MessageSquare } from 'lucide-react'
 
@@ -70,26 +71,23 @@ export default function BookingPage() {
     setSaving(true)
 
     try {
-      const supabase = createClient()
-
       const bookingDate = new Date(`${formData.date}T${formData.time}:00`)
 
-      const data: any = {
-        consultant_email: formData.email,
+      const data = {
+        user_id: user?.uid || null,
+        user_email: formData.email,
+        name: formData.name,
+        phone: formData.phone,
+        company: formData.company,
+        topic: formData.topic,
         booking_date: bookingDate.toISOString(),
         duration_minutes: 60,
-        topic: formData.topic,
         notes: `Company: ${formData.company}\nPhone: ${formData.phone}\n\n${formData.notes}`,
         status: 'pending',
+        created_at: serverTimestamp(),
       }
 
-      if (user) {
-        data.user_id = user.id
-      }
-
-      const { error: dbError } = await supabase.from('bookings').insert([data])
-
-      if (dbError) throw dbError
+      await addDoc(collection(db, 'bookings'), data)
 
       setSubmitted(true)
     } catch (err) {

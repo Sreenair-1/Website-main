@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase'
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
 import { ArrowRight } from 'lucide-react'
@@ -88,30 +87,7 @@ const DEFAULT_CASE_STUDIES: CaseStudy[] = [
 
 export default function CaseStudiesPage() {
   const [caseStudies, setCaseStudies] = useState<CaseStudy[]>(DEFAULT_CASE_STUDIES)
-  const [loading, setLoading] = useState(true)
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetchCaseStudies()
-  }, [])
-
-  const fetchCaseStudies = async () => {
-    try {
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('case_studies')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (data && data.length > 0) {
-        setCaseStudies(data)
-      }
-    } catch (err) {
-      console.error('Failed to fetch case studies:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const allTags = Array.from(new Set(caseStudies.flatMap(cs => cs.tags)))
   const filteredStudies = selectedTag
@@ -166,9 +142,7 @@ export default function CaseStudiesPage() {
       {/* Case Studies Grid */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          {loading ? (
-            <div className="text-center py-12 text-muted-foreground">Loading case studies...</div>
-          ) : filteredStudies.length === 0 ? (
+          {filteredStudies.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">No case studies found</div>
           ) : (
             <div className="space-y-12">

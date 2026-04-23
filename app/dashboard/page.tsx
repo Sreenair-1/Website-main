@@ -3,10 +3,22 @@
 import { useAuth } from '@/providers/auth-provider'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase'
+import { db } from '@/lib/firebase'
+import { collection, getDocs, query, where } from 'firebase/firestore'
 import Link from 'next/link'
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
-import { LogOut, LogIn, Zap } from 'lucide-react'
+import {
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts'
+import { LogOut, MessageSquareMore, Star, Zap } from 'lucide-react'
 
 interface DiagnosticResult {
   id: string
@@ -18,11 +30,23 @@ interface DiagnosticResult {
   created_at: string
 }
 
+interface FeedbackSubmission {
+  id: string
+  user_id: string
+  category: string
+  rating: number
+  message: string
+  page_context: string
+  created_at: string
+}
+
 export default function DashboardPage() {
   const { user, loading, signOut } = useAuth()
   const router = useRouter()
   const [results, setResults] = useState<DiagnosticResult[]>([])
+  const [feedback, setFeedback] = useState<FeedbackSubmission[]>([])
   const [loadingResults, setLoadingResults] = useState(true)
+  const [loadingFeedback, setLoadingFeedback] = useState(true)
   const [aiInsights, setAiInsights] = useState<string>('')
   const [loadingInsights, setLoadingInsights] = useState(false)
 
@@ -34,24 +58,55 @@ export default function DashboardPage() {
 
     if (user) {
       fetchResults()
+      fetchFeedback()
     }
   }, [user, loading, router])
 
   const fetchResults = async () => {
     try {
-      const supabase = createClient()
-      const { data, error } = await supabase
-        .from('diagnostic_results')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false })
+      if (!user) return
 
-      if (error) throw error
-      setResults(data || [])
+      const resultsQuery = query(
+        collection(db, 'diagnostic_results'),
+        where('user_id', '==', user.uid)
+      )
+
+      const snapshot = await getDocs(resultsQuery)
+      const items = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as Omit<DiagnosticResult, 'id'>),
+      }))
+
+      items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      setResults(items)
     } catch (err) {
       console.error('Failed to fetch results:', err)
     } finally {
       setLoadingResults(false)
+    }
+  }
+
+  const fetchFeedback = async () => {
+    try {
+      if (!user) return
+
+      const feedbackQuery = query(
+        collection(db, 'feedback_submissions'),
+        where('user_id', '==', user.uid)
+      )
+
+      const snapshot = await getDocs(feedbackQuery)
+      const items = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as Omit<FeedbackSubmission, 'id'>),
+      }))
+
+      items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      setFeedback(items)
+    } catch (err) {
+      console.error('Failed to fetch feedback:', err)
+    } finally {
+      setLoadingFeedback(false)
     }
   }
 
@@ -105,7 +160,6 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
       <nav className="bg-card border-b border-border sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
@@ -127,14 +181,12 @@ export default function DashboardPage() {
         </div>
       </nav>
 
-      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-12">
           <h1 className="text-4xl font-bold mb-2">Dashboard</h1>
           <p className="text-muted-foreground">Track your transformation journey</p>
         </div>
 
-        {/* CTA Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
           <Link
             href="/diagnostics"
@@ -159,7 +211,41 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* Assessment Results */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-6 mb-12">
+          <Link
+            href="/feedback"
+            className="rounded-lg border border-border bg-card p-8 hover:shadow-lg transition-shadow"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <MessageSquareMore className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Version 1.1</p>
+                <h3 className="text-xl font-bold">Share feedback</h3>
+              </div>
+            </div>
+            <p className="text-muted-foreground mb-4">
+              Tell us what feels clear, what feels missing, and where we should improve the experience.
+            </p>
+            <div className="text-primary font-medium">Open feedback form →</div>
+          </Link>
+
+          <div className="rounded-lg border border-border bg-card p-8">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Feedback status</p>
+                <h3 className="text-xl font-bold">Your voice in the product</h3>
+              </div>
+              <Star className="h-5 w-5 text-primary" />
+            </div>
+            <p className="text-muted-foreground">
+              Version 1.1 adds a direct feedback loop so every user can rate the experience and leave notes
+              for future improvements.
+            </p>
+          </div>
+        </div>
+
         {loadingResults ? (
           <div className="text-center py-12 text-muted-foreground">Loading assessments...</div>
         ) : results.length === 0 ? (
@@ -179,7 +265,6 @@ export default function DashboardPage() {
           <div className="space-y-8">
             <h2 className="text-2xl font-bold">Your Assessments</h2>
 
-            {/* Latest Assessment Detail */}
             {latestResult && (
               <div className="bg-card rounded-lg border border-border p-8">
                 <div className="flex justify-between items-start mb-8">
@@ -192,16 +277,16 @@ export default function DashboardPage() {
                   <div className="text-5xl font-bold text-primary">{latestResult.score}</div>
                 </div>
 
-                {/* Charts Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                  {/* Category Scores Bar Chart */}
                   <div>
                     <h4 className="font-bold mb-4">Category Scores</h4>
                     <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={Object.entries(latestResult.dimensions).map(([key, value]) => ({
-                        name: key.charAt(0).toUpperCase() + key.slice(1),
-                        value: typeof value === 'number' ? value : 0,
-                      }))}>
+                      <BarChart
+                        data={Object.entries(latestResult.dimensions).map(([key, value]) => ({
+                          name: key.charAt(0).toUpperCase() + key.slice(1),
+                          value: typeof value === 'number' ? value : 0,
+                        }))}
+                      >
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                         <XAxis dataKey="name" />
                         <YAxis />
@@ -211,7 +296,6 @@ export default function DashboardPage() {
                     </ResponsiveContainer>
                   </div>
 
-                  {/* Score Distribution Pie Chart */}
                   <div>
                     <h4 className="font-bold mb-4">Score Distribution</h4>
                     <ResponsiveContainer width="100%" height={300}>
@@ -238,7 +322,6 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* Recommendations */}
                 {latestResult.recommendations && latestResult.recommendations.length > 0 && (
                   <div>
                     <h4 className="font-bold mb-4">Recommendations</h4>
@@ -253,7 +336,6 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                {/* AI Consultant Insight */}
                 <div className="mt-8 p-6 border-2 border-primary/30 rounded-lg bg-gradient-to-br from-primary/5 to-transparent">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center">
@@ -279,7 +361,39 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Past Assessments */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold">Recent Feedback</h3>
+                <Link href="/feedback" className="text-sm text-primary hover:underline">
+                  Leave feedback
+                </Link>
+              </div>
+              {loadingFeedback ? (
+                <div className="text-sm text-muted-foreground">Loading feedback...</div>
+              ) : feedback.length === 0 ? (
+                <div className="rounded-lg border border-border bg-card p-6 text-sm text-muted-foreground">
+                  No feedback submitted yet. Use the new feedback form to tell us what to improve.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {feedback.slice(0, 3).map((item) => (
+                    <div key={item.id} className="rounded-lg border border-border bg-card p-4">
+                      <div className="flex items-center justify-between gap-4 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold capitalize">{item.category}</span>
+                          <span className="text-xs text-muted-foreground uppercase tracking-wide">
+                            {item.page_context}
+                          </span>
+                        </div>
+                        <div className="text-sm font-semibold text-primary">{item.rating}/5</div>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{item.message}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {results.length > 1 && (
               <div>
                 <h3 className="text-xl font-bold mb-4">Past Assessments</h3>
