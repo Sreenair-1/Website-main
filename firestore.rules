@@ -10,7 +10,26 @@ service cloud.firestore {
     }
 
     match /bookings/{bookingId} {
-      allow create, read: if request.auth != null;
+      allow create: if request.resource.data.keys().hasAll([
+          'user_id',
+          'user_email',
+          'name',
+          'phone',
+          'company',
+          'topic',
+          'booking_date',
+          'duration_minutes',
+          'notes',
+          'status',
+          'created_at'
+        ])
+        && request.resource.data.user_email is string
+        && request.resource.data.name is string
+        && request.resource.data.topic is string
+        && request.resource.data.booking_date is string
+        && request.resource.data.duration_minutes == 60
+        && request.resource.data.status == 'pending';
+      allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
       allow update, delete: if false;
     }
 
