@@ -12,7 +12,7 @@ export function Footer() {
               IndusOpa<span className="text-primary">.</span>
             </div>
             <p className="text-sm leading-6 text-muted-foreground">
-              A website starter for authentication, diagnostics, and product-led growth.
+              Operations and supply chain consulting for teams that want clearer decisions and better execution.
             </p>
           </div>
 

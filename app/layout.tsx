@@ -5,7 +5,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'IndusOpa Consulting',
-  description: 'A responsive consulting website starter with authentication, diagnostics, and dashboard-ready flows.',
+  description: 'IndusOpa Consulting helps organizations improve operations, supply chains, and transformation readiness.',
   generator: 'v0.app',
   icons: {
     icon: [

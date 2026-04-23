@@ -221,7 +221,6 @@ export default function DashboardPage() {
                 <MessageSquareMore className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Version 1.1</p>
                 <h3 className="text-xl font-bold">Share feedback</h3>
               </div>
             </div>
@@ -240,7 +239,7 @@ export default function DashboardPage() {
               <Star className="h-5 w-5 text-primary" />
             </div>
             <p className="text-muted-foreground">
-              Version 1.1 adds a direct feedback loop so every user can rate the experience and leave notes
+              adds a direct feedback loop so every user can rate the experience and leave notes
               for future improvements.
             </p>
           </div>

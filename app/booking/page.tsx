@@ -29,6 +29,32 @@ const TIME_SLOTS = [
   '04:00 PM',
 ]
 
+function buildBookingDate(date: string, time: string) {
+  const [timePart, meridiem] = time.split(' ')
+  const [hoursRaw, minutesRaw] = timePart.split(':')
+  let hours = Number(hoursRaw)
+  const minutes = Number(minutesRaw)
+
+  if (Number.isNaN(hours) || Number.isNaN(minutes) || !meridiem) {
+    return null
+  }
+
+  if (meridiem === 'PM' && hours !== 12) {
+    hours += 12
+  }
+
+  if (meridiem === 'AM' && hours === 12) {
+    hours = 0
+  }
+
+  const [year, month, day] = date.split('-').map(Number)
+  if ([year, month, day].some((part) => Number.isNaN(part))) {
+    return null
+  }
+
+  return new Date(year, month - 1, day, hours, minutes, 0, 0)
+}
+
 export default function BookingPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
@@ -71,7 +97,11 @@ export default function BookingPage() {
     setSaving(true)
 
     try {
-      const bookingDate = new Date(`${formData.date}T${formData.time}:00`)
+      const bookingDate = buildBookingDate(formData.date, formData.time)
+
+      if (!bookingDate || Number.isNaN(bookingDate.getTime())) {
+        throw new Error('Please choose a valid date and time')
+      }
 
       const data = {
         user_id: user?.uid || null,

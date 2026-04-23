@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase'
 import { ArrowLeft } from 'lucide-react'
 
 const DEFAULT_CASE_STUDIES: Record<string, any> = {

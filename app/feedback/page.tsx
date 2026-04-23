@@ -145,7 +145,7 @@ export default function FeedbackPage() {
           <section className="space-y-6">
             <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm text-muted-foreground">
               <MessageSquareMore className="h-4 w-4 text-primary" />
-              Version 1.1 user feedback system
+              user feedback system
             </div>
 
             <div>
@@ -267,7 +267,7 @@ export default function FeedbackPage() {
                 </div>
               </div>
               <p className="mt-4 text-sm text-muted-foreground">
-                Version 1.1 turns feedback into a simple, repeatable loop that you can act on.
+                turns feedback into a simple, repeatable loop that you can act on.
               </p>
             </div>
 
