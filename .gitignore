@@ -11,6 +11,10 @@ next.user-config.*
 .env*.local
 .env
 
+# Firebase local state
+.firebase/
+firebase-debug.log*
+
 # Common ignores
 node_modules
 .next/

@@ -1,18 +1,34 @@
-import { initializeApp, getApps } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getApp, getApps, initializeApp } from 'firebase/app'
+import { getAuth } from 'firebase/auth'
+import { getFirestore } from 'firebase/firestore'
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCdyKoA5XXbv8oi9Du_p6dP5GBv4KSJS_o",
-  authDomain: "maza-c8abe.firebaseapp.com",
-  projectId: "maza-c8abe",
-  storageBucket: "maza-c8abe.firebasestorage.app",
-  messagingSenderId: "56416266587",
-  appId: "1:56416266587:web:a5b0a2cb1365aa4233527e",
-  measurementId: "G-RV5B1H764G"
-};
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+}
 
-// Initialize Firebase (prevent duplicate app initialization)
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const auth = getAuth(app);
+const requiredConfigKeys: Array<keyof typeof firebaseConfig> = [
+  'apiKey',
+  'authDomain',
+  'projectId',
+  'storageBucket',
+  'messagingSenderId',
+  'appId',
+]
 
-export { app, auth };
+for (const key of requiredConfigKeys) {
+  if (!firebaseConfig[key]) {
+    throw new Error(`Missing Firebase environment variable for ${key}`)
+  }
+}
+
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp()
+const auth = getAuth(app)
+const db = getFirestore(app)
+
+export { app, auth, db }

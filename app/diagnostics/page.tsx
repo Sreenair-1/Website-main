@@ -6,11 +6,9 @@ import { useRouter } from 'next/navigation'
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
 import { diagnosticQuestions, diagnosticCategories, calculateScore, getScoreCategoryLabel } from '@/lib/diagnostics'
-import { app } from '@/lib/firebase'
-import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import Link from 'next/link'
-
-const db = getFirestore(app)
 
 export default function DiagnosticsPage() {
   const { user, loading } = useAuth()
