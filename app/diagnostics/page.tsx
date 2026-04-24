@@ -7,7 +7,7 @@ import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
 import { diagnosticQuestions, diagnosticCategories, calculateScore, getScoreCategoryLabel } from '@/lib/diagnostics'
 import { db } from '@/lib/firebase'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, addDoc } from 'firebase/firestore'
 import Link from 'next/link'
 
 export default function DiagnosticsPage() {
@@ -34,7 +34,7 @@ export default function DiagnosticsPage() {
   }
 
   const question = diagnosticQuestions[currentQuestion]
-  const progress = ((Object.keys(answers).length) / diagnosticQuestions.length) * 100
+  const progress = (Object.keys(answers).length / diagnosticQuestions.length) * 100
 
   const handleAnswer = (value: number) => {
     setAnswers({
@@ -66,14 +66,14 @@ export default function DiagnosticsPage() {
         category: 'Transformation Readiness',
         dimensions: categoryDimensions,
         recommendations: scoreResult.recommendations,
-        createdAt: serverTimestamp(),
+        created_at: new Date().toISOString(),
       })
 
       setSubmitted(true)
     } catch (err) {
       console.error('Failed to save result:', err)
       setSubmitError(err instanceof Error ? err.message : 'Failed to save assessment result')
-      setSubmitted(true) // still show results even if save fails
+      setSubmitted(true)
     } finally {
       setSaving(false)
     }
@@ -97,7 +97,6 @@ export default function DiagnosticsPage() {
                 </div>
               )}
 
-              {/* Overall Score */}
               <div className="bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg p-8 mb-8 border border-primary/20">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-2xl font-bold">Overall Readiness Score</h2>
@@ -112,7 +111,6 @@ export default function DiagnosticsPage() {
                 <p className="text-lg font-semibold">{getScoreCategoryLabel(result.overall)}</p>
               </div>
 
-              {/* Category Breakdown */}
               <h3 className="text-2xl font-bold mb-6">Category Breakdown</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                 {Object.entries(result.byCategory).map(([categoryKey, score]: [string, any]) => {
@@ -124,10 +122,7 @@ export default function DiagnosticsPage() {
                       <div className="flex items-end gap-4">
                         <div className="flex-1">
                           <div className="bg-border rounded-full h-2 mb-2">
-                            <div
-                              className="bg-accent h-2 rounded-full"
-                              style={{ width: `${score}%` }}
-                            />
+                            <div className="bg-accent h-2 rounded-full" style={{ width: `${score}%` }} />
                           </div>
                         </div>
                         <div className="text-3xl font-bold text-accent">{score}</div>
@@ -137,14 +132,13 @@ export default function DiagnosticsPage() {
                 })}
               </div>
 
-              {/* Recommendations */}
               {result.recommendations.length > 0 && (
                 <div className="mb-8">
                   <h3 className="text-2xl font-bold mb-4">Recommendations</h3>
                   <div className="space-y-3">
                     {result.recommendations.map((rec: string, idx: number) => (
                       <div key={idx} className="flex gap-3 bg-secondary/5 p-4 rounded-lg border border-border">
-                        <div className="text-primary font-bold flex-shrink-0">✓</div>
+                        <div className="text-primary font-bold flex-shrink-0">OK</div>
                         <p>{rec}</p>
                       </div>
                     ))}
@@ -152,7 +146,6 @@ export default function DiagnosticsPage() {
                 </div>
               )}
 
-              {/* Next Steps */}
               <div className="flex gap-4">
                 <Link
                   href="/dashboard"
@@ -187,7 +180,7 @@ export default function DiagnosticsPage() {
         <div className="max-w-2xl mx-auto">
           <div className="mb-8">
             <Link href="/dashboard" className="text-primary hover:underline text-sm mb-4 inline-block">
-              ← Back to Dashboard
+              Back to Dashboard
             </Link>
             <h1 className="text-4xl font-bold mb-2">Transformation Readiness Assessment</h1>
             <p className="text-muted-foreground">
@@ -195,10 +188,11 @@ export default function DiagnosticsPage() {
             </p>
           </div>
 
-          {/* Progress Bar */}
           <div className="mb-12">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium">Question {currentQuestion + 1} of {diagnosticQuestions.length}</span>
+              <span className="text-sm font-medium">
+                Question {currentQuestion + 1} of {diagnosticQuestions.length}
+              </span>
               <span className="text-sm text-muted-foreground">{Math.round(progress)}%</span>
             </div>
             <div className="w-full bg-border rounded-full h-2">
@@ -209,7 +203,6 @@ export default function DiagnosticsPage() {
             </div>
           </div>
 
-          {/* Question Card */}
           <div className="bg-card rounded-lg border border-border p-8 mb-8">
             <div className="mb-4">
               <span className="inline-block bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium mb-4">
@@ -235,7 +228,6 @@ export default function DiagnosticsPage() {
             </div>
           </div>
 
-          {/* Navigation */}
           <div className="flex gap-4">
             <button
               onClick={() => setCurrentQuestion(Math.max(0, currentQuestion - 1))}

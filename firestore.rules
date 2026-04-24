@@ -4,38 +4,50 @@ service cloud.firestore {
   match /databases/{database}/documents {
     match /diagnostic_results/{resultId} {
       allow create: if request.auth != null
-        && request.resource.data.user_id == request.auth.uid;
+        && request.resource.data.keys().hasOnly([
+          'user_id',
+          'title',
+          'score',
+          'category',
+          'dimensions',
+          'recommendations',
+          'created_at'
+        ])
+        && request.resource.data.user_id == request.auth.uid
+        && request.resource.data.title is string
+        && request.resource.data.score is number
+        && request.resource.data.category is string
+        && request.resource.data.dimensions is map
+        && request.resource.data.recommendations is list
+        && request.resource.data.created_at is string;
       allow read, update, delete: if request.auth != null
         && resource.data.user_id == request.auth.uid;
     }
 
     match /bookings/{bookingId} {
-      allow create: if request.resource.data.keys().hasAll([
-          'user_id',
-          'user_email',
-          'name',
-          'phone',
-          'company',
-          'topic',
-          'booking_date',
-          'duration_minutes',
-          'notes',
-          'status',
-          'created_at'
-        ])
-        && request.resource.data.user_email is string
-        && request.resource.data.name is string
-        && request.resource.data.topic is string
-        && request.resource.data.booking_date is string
-        && request.resource.data.duration_minutes == 60
-        && request.resource.data.status == 'pending';
-      allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
-      allow update, delete: if false;
+      allow read, write: if false;
     }
 
     match /feedback_submissions/{feedbackId} {
       allow create: if request.auth != null
-        && request.resource.data.user_id == request.auth.uid;
+        && request.resource.data.keys().hasOnly([
+          'user_id',
+          'email',
+          'category',
+          'rating',
+          'message',
+          'page_context',
+          'would_recommend',
+          'created_at'
+        ])
+        && request.resource.data.user_id == request.auth.uid
+        && request.resource.data.email is string
+        && request.resource.data.category is string
+        && request.resource.data.rating is number
+        && request.resource.data.message is string
+        && request.resource.data.page_context is string
+        && request.resource.data.would_recommend is bool
+        && request.resource.data.created_at is string;
       allow read, update, delete: if request.auth != null
         && resource.data.user_id == request.auth.uid;
     }

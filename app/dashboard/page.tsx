@@ -74,7 +74,11 @@ export default function DashboardPage() {
       const snapshot = await getDocs(resultsQuery)
       const items = snapshot.docs.map((doc) => ({
         id: doc.id,
-        ...(doc.data() as Omit<DiagnosticResult, 'id'>),
+        ...(doc.data() as Omit<DiagnosticResult, 'id'> & { createdAt?: string }),
+        created_at:
+          (doc.data() as { created_at?: string; createdAt?: string }).created_at ??
+          (doc.data() as { created_at?: string; createdAt?: string }).createdAt ??
+          new Date().toISOString(),
       }))
 
       items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -113,9 +117,13 @@ export default function DashboardPage() {
   const fetchAIInsights = async (result: DiagnosticResult) => {
     setLoadingInsights(true)
     try {
+      const token = await user?.getIdToken()
       const response = await fetch('/api/ai-insights', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           score: result.score,
           dimensions: result.dimensions,
