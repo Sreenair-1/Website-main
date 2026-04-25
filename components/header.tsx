@@ -27,6 +27,9 @@ export function Header() {
         </Link>
 
         <nav className="hidden items-center gap-8 text-sm font-medium text-muted-foreground md:flex">
+          <Link href="/about" className="transition-colors hover:text-foreground">
+            About
+          </Link>
           <Link href="/case-studies" className="transition-colors hover:text-foreground">
             Solutions
           </Link>
