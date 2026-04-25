@@ -33,6 +33,7 @@ import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
 import { useAuth } from '@/providers/auth-provider'
 import { db } from '@/lib/firebase'
+import { Shield } from 'lucide-react'
 
 interface DiagnosticResult {
   id: string
@@ -67,7 +68,7 @@ function getScoreLabel(score: number) {
 }
 
 export default function DashboardPage() {
-  const { user, loading, signOut } = useAuth()
+  const { user, role, loading, signOut } = useAuth()
   const router = useRouter()
   const [results, setResults] = useState<DiagnosticResult[]>([])
   const [feedback, setFeedback] = useState<FeedbackSubmission[]>([])
@@ -394,6 +395,36 @@ export default function DashboardPage() {
               Tell us what feels clear, what feels missing, and where the product can feel sharper.
             </p>
           </Link>
+
+          {role === 'admin' ? (
+            <Link
+              href="/admin/feedback"
+              className="group rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 to-card p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+                  <Shield className="h-5 w-5 text-primary" />
+                </div>
+                <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1" />
+              </div>
+              <h3 className="mt-5 text-xl font-bold">Admin feedback tools</h3>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Open the AI summary and download the feedback export as CSV.
+              </p>
+            </Link>
+          ) : (
+            <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary/30">
+                  <Shield className="h-5 w-5 text-muted-foreground" />
+                </div>
+              </div>
+              <h3 className="mt-5 text-xl font-bold">Admin tools locked</h3>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Only admin accounts can view the feedback summary and export the data.
+              </p>
+            </div>
+          )}
         </section>
 
         <section className="mt-8 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">

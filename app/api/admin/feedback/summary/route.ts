@@ -144,6 +144,7 @@ export async function GET(request: NextRequest) {
         recommendRate: totalFeedback > 0 ? Math.round((recommendCount / totalFeedback) * 100) : 0,
         topCategories,
       },
+      allFeedback: sortedFeedback,
       recentFeedback: sortedFeedback.slice(0, 25).map((item) => ({
         ...item,
         message: escapeText(item.message),

@@ -26,12 +26,57 @@ type FeedbackSummaryResponse = {
     rating: number
     would_recommend: boolean
     page_context: string
+      message: string
+    }>
+  allFeedback: Array<{
+    id: string
+    created_at: string
+    email: string
+    category: string
+    rating: number
+    would_recommend: boolean
+    page_context: string
     message: string
+    user_id: string
   }>
 }
 
+function csvEscape(value: unknown) {
+  const text = String(value ?? '')
+  return `"${text.replace(/"/g, '""')}"`
+}
+
+function buildCsv(feedback: FeedbackSummaryResponse['allFeedback']) {
+  const rows = [
+    [
+      'id',
+      'created_at',
+      'email',
+      'category',
+      'rating',
+      'would_recommend',
+      'page_context',
+      'user_id',
+      'message',
+    ],
+    ...feedback.map((item) => [
+      item.id,
+      item.created_at,
+      item.email,
+      item.category,
+      item.rating,
+      item.would_recommend ? 'yes' : 'no',
+      item.page_context,
+      item.user_id,
+      item.message,
+    ]),
+  ]
+
+  return rows.map((row) => row.map(csvEscape).join(',')).join('\n')
+}
+
 export default function AdminFeedbackPage() {
-  const { user, loading } = useAuth()
+  const { user, role, loading } = useAuth()
   const router = useRouter()
   const [summary, setSummary] = useState<FeedbackSummaryResponse | null>(null)
   const [loadingSummary, setLoadingSummary] = useState(true)
@@ -84,6 +129,20 @@ export default function AdminFeedbackPage() {
 
     setExporting(true)
     try {
+      if (summary?.allFeedback?.length) {
+        const csv = buildCsv(summary.allFeedback)
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const anchor = document.createElement('a')
+        anchor.href = url
+        anchor.download = `feedback-submissions-${new Date().toISOString().slice(0, 10)}.csv`
+        document.body.appendChild(anchor)
+        anchor.click()
+        anchor.remove()
+        URL.revokeObjectURL(url)
+        return
+      }
+
       const token = await user.getIdToken()
       const response = await fetch('/api/admin/feedback/export', {
         headers: {
@@ -91,12 +150,12 @@ export default function AdminFeedbackPage() {
         },
       })
 
-      if (response.status === 403) {
-        throw new Error('You do not have access to export feedback.')
-      }
-
+      const contentType = response.headers.get('content-type') || ''
       if (!response.ok) {
-        throw new Error('Failed to export feedback')
+        const message = contentType.includes('application/json')
+          ? (await response.json().catch(() => null))?.error || 'Failed to export feedback'
+          : await response.text().catch(() => 'Failed to export feedback')
+        throw new Error(message)
       }
 
       const blob = await response.blob()
@@ -126,6 +185,38 @@ export default function AdminFeedbackPage() {
 
   if (!user) {
     return null
+  }
+
+  if (role !== 'admin') {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="mx-auto max-w-3xl px-6 py-20">
+          <div className="rounded-3xl border border-border bg-card p-8 shadow-sm">
+            <p className="text-sm uppercase tracking-[0.25em] text-primary">Access restricted</p>
+            <h1 className="mt-4 text-3xl font-bold">Admin access required</h1>
+            <p className="mt-3 text-muted-foreground">
+              This feedback export and summary view is only available to users with the admin role.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                href="/dashboard"
+                className="rounded-full bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                Back to dashboard
+              </Link>
+              <Link
+                href="/"
+                className="rounded-full border border-border px-5 py-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary/40"
+              >
+                Go home
+              </Link>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    )
   }
 
   return (

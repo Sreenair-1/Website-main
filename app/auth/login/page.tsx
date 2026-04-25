@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/providers/auth-provider'
+import { ArrowLeft } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -32,6 +33,15 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-secondary/10 px-4">
       <div className="w-full max-w-md">
         <div className="bg-card rounded-lg border border-border shadow-lg p-8">
+          <div className="mb-6 flex items-center justify-between">
+            <Link href="/" className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="h-4 w-4" />
+              Back to home
+            </Link>
+            <Link href="/booking" className="text-sm font-medium text-primary hover:underline">
+              Explore as guest
+            </Link>
+          </div>
           <h1 className="text-3xl font-bold text-foreground mb-2">Welcome Back</h1>
           <p className="text-muted-foreground mb-8">Sign in to your IndusOpa account</p>
 
