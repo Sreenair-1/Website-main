@@ -1,11 +1,21 @@
 'use client'
 
-import { useAuth } from '@/providers/auth-provider'
-import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { db } from '@/lib/firebase'
-import { collection, getDocs, query, where } from 'firebase/firestore'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { collection, getDocs, query, where } from 'firebase/firestore'
+import {
+  Activity,
+  ArrowRight,
+  BarChart3,
+  Clock3,
+  LogOut,
+  MessageSquareMore,
+  Sparkles,
+  Star,
+  TrendingUp,
+  Zap,
+} from 'lucide-react'
 import {
   BarChart,
   Bar,
@@ -18,7 +28,11 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
-import { LogOut, MessageSquareMore, Star, Zap } from 'lucide-react'
+
+import { Header } from '@/components/header'
+import { Footer } from '@/components/footer'
+import { useAuth } from '@/providers/auth-provider'
+import { db } from '@/lib/firebase'
 
 interface DiagnosticResult {
   id: string
@@ -37,7 +51,19 @@ interface FeedbackSubmission {
   rating: number
   message: string
   page_context: string
+  would_recommend: boolean
   created_at: string
+}
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString()
+}
+
+function getScoreLabel(score: number) {
+  if (score >= 80) return 'Strong'
+  if (score >= 60) return 'Balanced'
+  if (score >= 40) return 'Needs attention'
+  return 'At risk'
 }
 
 export default function DashboardPage() {
@@ -66,11 +92,7 @@ export default function DashboardPage() {
     try {
       if (!user) return
 
-      const resultsQuery = query(
-        collection(db, 'diagnostic_results'),
-        where('user_id', '==', user.uid)
-      )
-
+      const resultsQuery = query(collection(db, 'diagnostic_results'), where('user_id', '==', user.uid))
       const snapshot = await getDocs(resultsQuery)
       const items = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -94,11 +116,7 @@ export default function DashboardPage() {
     try {
       if (!user) return
 
-      const feedbackQuery = query(
-        collection(db, 'feedback_submissions'),
-        where('user_id', '==', user.uid)
-      )
-
+      const feedbackQuery = query(collection(db, 'feedback_submissions'), where('user_id', '==', user.uid))
       const snapshot = await getDocs(feedbackQuery)
       const items = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -164,130 +182,257 @@ export default function DashboardPage() {
   }
 
   const latestResult = results[0]
-  const COLORS = ['#0f62fe', '#6366f1', '#ec4899', '#f59e0b', '#10b981']
+  const latestScore = latestResult?.score ?? 0
+  const averageFeedbackRating =
+    feedback.length > 0
+      ? (feedback.reduce((sum, item) => sum + item.rating, 0) / feedback.length).toFixed(1)
+      : '0.0'
+  const recommendRate =
+    feedback.length > 0
+      ? Math.round((feedback.filter((item) => item.would_recommend).length / feedback.length) * 100)
+      : 0
+  const totalRecommendations = latestResult?.recommendations?.length ?? 0
+  const topDimension = latestResult
+    ? Object.entries(latestResult.dimensions).sort((a, b) => b[1] - a[1])[0]
+    : null
+  const chartColors = ['#0f62fe', '#6366f1', '#ec4899', '#f59e0b', '#10b981']
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="bg-card border-b border-border sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold">IO</span>
+      <Header />
+
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <nav className="mb-8 rounded-3xl border border-border bg-card/85 px-5 py-4 shadow-sm backdrop-blur">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
+                <span className="font-bold">IO</span>
+              </div>
+              <div>
+                <div className="text-sm uppercase tracking-[0.25em] text-muted-foreground">Client Portal</div>
+                <div className="font-bold">IndusOpa Consulting</div>
+              </div>
             </div>
-            <span className="font-bold">IndusOpa</span>
-          </Link>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">{user.email}</span>
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-2 text-foreground hover:text-primary transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              Sign Out
-            </button>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="rounded-full border border-border bg-background px-4 py-2 text-sm text-muted-foreground">
+                {user.email}
+              </div>
+              <button
+                onClick={handleSignOut}
+                className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary/40"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </button>
+            </div>
           </div>
-        </div>
-      </nav>
+        </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="mb-12">
-          <h1 className="text-4xl font-bold mb-2">Dashboard</h1>
-          <p className="text-muted-foreground">Track your transformation journey</p>
-        </div>
+        <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="relative overflow-hidden rounded-[2rem] border border-border bg-gradient-to-br from-primary/10 via-card to-secondary/20 p-8 shadow-sm">
+            <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
+            <div className="absolute bottom-0 left-1/3 h-28 w-28 rounded-full bg-accent/10 blur-3xl" />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+            <div className="relative z-10 space-y-6">
+              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm text-muted-foreground">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Performance overview
+              </div>
+
+              <div className="max-w-2xl">
+                <h1 className="text-4xl font-bold tracking-tight md:text-5xl">Your consulting workspace</h1>
+                <p className="mt-4 max-w-xl text-lg text-muted-foreground">
+                  Review your latest readiness assessment, track feedback, and move straight into the next client
+                  action with one clean workspace.
+                </p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Activity className="h-4 w-4 text-primary" />
+                    Latest score
+                  </div>
+                  <div className="mt-3 text-3xl font-bold">{latestScore}</div>
+                  <div className="mt-1 text-sm text-muted-foreground">{getScoreLabel(latestScore)}</div>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <MessageSquareMore className="h-4 w-4 text-primary" />
+                    Feedback
+                  </div>
+                  <div className="mt-3 text-3xl font-bold">{feedback.length}</div>
+                  <div className="mt-1 text-sm text-muted-foreground">submissions</div>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Star className="h-4 w-4 text-primary" />
+                    Avg rating
+                  </div>
+                  <div className="mt-3 text-3xl font-bold">{averageFeedbackRating}</div>
+                  <div className="mt-1 text-sm text-muted-foreground">out of 5</div>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <BarChart3 className="h-4 w-4 text-primary" />
+                    Actions
+                  </div>
+                  <div className="mt-3 text-3xl font-bold">{totalRecommendations}</div>
+                  <div className="mt-1 text-sm text-muted-foreground">next steps</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <aside className="rounded-[2rem] border border-border bg-card p-8 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10">
+                <Zap className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm uppercase tracking-[0.25em] text-primary">Quick insight</p>
+                <h2 className="text-xl font-bold">What should happen next?</h2>
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              <div className="rounded-2xl border border-border bg-secondary/5 p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-muted-foreground">Assessment status</span>
+                  <span className="text-sm font-semibold">{results.length > 0 ? 'Active' : 'No data yet'}</span>
+                </div>
+                <div className="mt-3 text-2xl font-bold">
+                  {latestResult ? latestResult.title : 'Complete your first assessment'}
+                </div>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  Use the dashboard to review readiness, capture feedback, and guide the next consulting step.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-secondary/5 p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-muted-foreground">Top dimension</span>
+                  <Clock3 className="h-4 w-4 text-primary" />
+                </div>
+                <div className="mt-3 text-lg font-semibold">
+                  {topDimension ? `${topDimension[0].charAt(0).toUpperCase()}${topDimension[0].slice(1)}` : 'No assessment yet'}
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {topDimension ? `${topDimension[1]} points in your strongest area` : 'Run an assessment to unlock this view.'}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href="/diagnostics"
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  Take assessment
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link
+                  href="/booking"
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-border px-5 py-3 text-sm font-medium transition-colors hover:bg-secondary/40"
+                >
+                  Book consult
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </div>
+          </aside>
+        </section>
+
+        <section className="mt-8 grid gap-6 lg:grid-cols-3">
           <Link
             href="/diagnostics"
-            className="bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 rounded-lg p-8 hover:shadow-lg transition-shadow"
+            className="group rounded-3xl border border-border bg-card p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg"
           >
-            <h3 className="text-xl font-bold mb-2">Take Assessment</h3>
-            <p className="text-muted-foreground mb-4">
-              Evaluate your organization&apos;s transformation readiness
+            <div className="flex items-center justify-between">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+                <TrendingUp className="h-5 w-5 text-primary" />
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1" />
+            </div>
+            <h3 className="mt-5 text-xl font-bold">Take Assessment</h3>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Review transformation readiness and generate a new score for the dashboard.
             </p>
-            <div className="text-primary font-medium">Start →</div>
           </Link>
 
           <Link
             href="/booking"
-            className="bg-gradient-to-br from-secondary/10 to-accent/10 border border-secondary/20 rounded-lg p-8 hover:shadow-lg transition-shadow"
+            className="group rounded-3xl border border-border bg-card p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg"
           >
-            <h3 className="text-xl font-bold mb-2">Book Consultation</h3>
-            <p className="text-muted-foreground mb-4">
-              Schedule a consultation with our experts
+            <div className="flex items-center justify-between">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary/30">
+                <Clock3 className="h-5 w-5 text-primary" />
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1" />
+            </div>
+            <h3 className="mt-5 text-xl font-bold">Book Consultation</h3>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Schedule a live discussion with the consulting team and capture your next milestone.
             </p>
-            <div className="text-accent font-medium">Schedule →</div>
           </Link>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-6 mb-12">
           <Link
             href="/feedback"
-            className="rounded-lg border border-border bg-card p-8 hover:shadow-lg transition-shadow"
+            className="group rounded-3xl border border-border bg-card p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg"
           >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <div className="flex items-center justify-between">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
                 <MessageSquareMore className="h-5 w-5 text-primary" />
               </div>
-              <div>
-                <h3 className="text-xl font-bold">Share feedback</h3>
-              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1" />
             </div>
-            <p className="text-muted-foreground mb-4">
-              Tell us what feels clear, what feels missing, and where we should improve the experience.
+            <h3 className="mt-5 text-xl font-bold">Share Feedback</h3>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Tell us what feels clear, what feels missing, and where the product can feel sharper.
             </p>
-            <div className="text-primary font-medium">Open feedback form →</div>
           </Link>
+        </section>
 
-          <div className="rounded-lg border border-border bg-card p-8">
-            <div className="flex items-center justify-between mb-4">
+        <section className="mt-8 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+          <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+            <div className="mb-6 flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm text-muted-foreground">Feedback status</p>
-                <h3 className="text-xl font-bold">Your voice in the product</h3>
+                <p className="text-sm uppercase tracking-[0.25em] text-primary">Latest assessment</p>
+                <h2 className="mt-1 text-2xl font-bold">Consulting scorecard</h2>
               </div>
-              <Star className="h-5 w-5 text-primary" />
+              <div className="rounded-2xl border border-border bg-secondary/5 px-4 py-3 text-right">
+                <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Current score</div>
+                <div className="text-3xl font-bold text-primary">{latestScore}</div>
+              </div>
             </div>
-            <p className="text-muted-foreground">
-              adds a direct feedback loop so every user can rate the experience and leave notes
-              for future improvements.
-            </p>
-          </div>
-        </div>
 
-        {loadingResults ? (
-          <div className="text-center py-12 text-muted-foreground">Loading assessments...</div>
-        ) : results.length === 0 ? (
-          <div className="bg-card rounded-lg border border-border p-12 text-center">
-            <h3 className="text-xl font-bold mb-2">No Assessments Yet</h3>
-            <p className="text-muted-foreground mb-6">
-              Take your first transformation readiness assessment to get started
-            </p>
-            <Link
-              href="/diagnostics"
-              className="inline-block bg-primary text-primary-foreground px-6 py-2 rounded-md hover:bg-primary/90 transition-colors"
-            >
-              Start Assessment
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-8">
-            <h2 className="text-2xl font-bold">Your Assessments</h2>
-
-            {latestResult && (
-              <div className="bg-card rounded-lg border border-border p-8">
-                <div className="flex justify-between items-start mb-8">
-                  <div>
-                    <h3 className="text-2xl font-bold mb-2">{latestResult.title}</h3>
-                    <p className="text-muted-foreground">
-                      {new Date(latestResult.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="text-5xl font-bold text-primary">{latestResult.score}</div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                  <div>
-                    <h4 className="font-bold mb-4">Category Scores</h4>
-                    <ResponsiveContainer width="100%" height={300}>
+            {loadingResults ? (
+              <div className="py-12 text-center text-sm text-muted-foreground">Loading assessments...</div>
+            ) : results.length === 0 ? (
+              <div className="rounded-2xl border border-border bg-secondary/10 p-8 text-center">
+                <h3 className="text-xl font-bold">No assessments yet</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Take your first transformation readiness assessment to unlock charts and recommendations.
+                </p>
+                <Link
+                  href="/diagnostics"
+                  className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  Start assessment
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                <div className="grid gap-8 lg:grid-cols-2">
+                  <div className="rounded-2xl border border-border bg-background p-4">
+                    <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                      Category scores
+                    </h3>
+                    <ResponsiveContainer width="100%" height={280}>
                       <BarChart
                         data={Object.entries(latestResult.dimensions).map(([key, value]) => ({
                           name: key.charAt(0).toUpperCase() + key.slice(1),
@@ -298,14 +443,16 @@ export default function DashboardPage() {
                         <XAxis dataKey="name" />
                         <YAxis />
                         <Tooltip />
-                        <Bar dataKey="value" fill="var(--color-primary)" />
+                        <Bar dataKey="value" fill="var(--color-primary)" radius={[8, 8, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
 
-                  <div>
-                    <h4 className="font-bold mb-4">Score Distribution</h4>
-                    <ResponsiveContainer width="100%" height={300}>
+                  <div className="rounded-2xl border border-border bg-background p-4">
+                    <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                      Score mix
+                    </h3>
+                    <ResponsiveContainer width="100%" height={280}>
                       <PieChart>
                         <Pie
                           data={Object.entries(latestResult.dimensions).map(([key, value]) => ({
@@ -315,11 +462,11 @@ export default function DashboardPage() {
                           cx="50%"
                           cy="50%"
                           labelLine={false}
-                          outerRadius={80}
+                          outerRadius={82}
                           fill="#8884d8"
                           dataKey="value"
                         >
-                          {COLORS.map((color, index) => (
+                          {chartColors.map((color, index) => (
                             <Cell key={`cell-${index}`} fill={color} />
                           ))}
                         </Pie>
@@ -329,92 +476,135 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {latestResult.recommendations && latestResult.recommendations.length > 0 && (
+                {latestResult.recommendations?.length > 0 && (
                   <div>
-                    <h4 className="font-bold mb-4">Recommendations</h4>
-                    <div className="space-y-2">
+                    <div className="mb-4 flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      <h3 className="text-lg font-bold">Recommendations</h3>
+                    </div>
+                    <div className="grid gap-3">
                       {latestResult.recommendations.map((rec, idx) => (
-                        <div key={idx} className="flex gap-2 p-3 bg-secondary/5 rounded border border-border">
-                          <span className="text-primary font-bold flex-shrink-0">✓</span>
-                          <span>{rec}</span>
+                        <div
+                          key={idx}
+                          className="flex gap-3 rounded-2xl border border-border bg-secondary/5 p-4"
+                        >
+                          <span className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                            {idx + 1}
+                          </span>
+                          <span className="text-sm leading-6 text-foreground">{rec}</span>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                <div className="mt-8 p-6 border-2 border-primary/30 rounded-lg bg-gradient-to-br from-primary/5 to-transparent">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center">
-                      <Zap className="w-6 h-6 text-primary" />
+                <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-card to-secondary/10 p-5">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10">
+                      <Zap className="h-5 w-5 text-primary" />
                     </div>
-                    <h4 className="text-lg font-bold">AI Consultant Insight</h4>
+                    <div>
+                      <p className="text-sm uppercase tracking-[0.25em] text-primary">AI consultant insight</p>
+                      <h3 className="text-xl font-bold">Readable next-step guidance</h3>
+                    </div>
                   </div>
 
                   {aiInsights ? (
-                    <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap text-sm leading-relaxed font-mono">
+                    <div className="mt-5 whitespace-pre-wrap rounded-2xl border border-border bg-card p-5 text-sm leading-7 text-foreground">
                       {aiInsights}
                     </div>
                   ) : (
                     <button
                       onClick={() => fetchAIInsights(latestResult)}
                       disabled={loadingInsights}
-                      className="w-full bg-primary text-primary-foreground px-4 py-2 rounded hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {loadingInsights ? 'Generating insights...' : 'Generate AI-Powered Insights'}
+                      {loadingInsights ? 'Generating insights...' : 'Generate AI insights'}
+                      <ArrowRight className="h-4 w-4" />
                     </button>
                   )}
                 </div>
               </div>
             )}
+          </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold">Recent Feedback</h3>
-                <Link href="/feedback" className="text-sm text-primary hover:underline">
-                  Leave feedback
-                </Link>
+          <div className="space-y-6">
+            <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.25em] text-primary">Feedback</p>
+                  <h3 className="text-xl font-bold">Recent customer notes</h3>
+                </div>
+                <MessageSquareMore className="h-5 w-5 text-primary" />
               </div>
+
               {loadingFeedback ? (
                 <div className="text-sm text-muted-foreground">Loading feedback...</div>
               ) : feedback.length === 0 ? (
-                <div className="rounded-lg border border-border bg-card p-6 text-sm text-muted-foreground">
-                  No feedback submitted yet. Use the new feedback form to tell us what to improve.
+                <div className="rounded-2xl border border-border bg-secondary/10 p-4 text-sm text-muted-foreground">
+                  No feedback submitted yet. Your first submission will appear here.
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {feedback.slice(0, 3).map((item) => (
-                    <div key={item.id} className="rounded-lg border border-border bg-card p-4">
-                      <div className="flex items-center justify-between gap-4 mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold capitalize">{item.category}</span>
-                          <span className="text-xs text-muted-foreground uppercase tracking-wide">
+                  {feedback.slice(0, 4).map((item) => (
+                    <div key={item.id} className="rounded-2xl border border-border bg-secondary/5 p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <div className="text-sm font-semibold">{item.category}</div>
+                          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                             {item.page_context}
-                          </span>
+                          </div>
                         </div>
                         <div className="text-sm font-semibold text-primary">{item.rating}/5</div>
                       </div>
-                      <p className="text-sm text-muted-foreground">{item.message}</p>
+                      <p className="mt-3 text-sm leading-6 text-muted-foreground">{item.message}</p>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
+            <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+              <div className="flex items-center gap-3">
+                <Star className="h-5 w-5 text-primary" />
+                <h3 className="text-xl font-bold">Feedback signals</h3>
+              </div>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <div className="rounded-2xl border border-border bg-secondary/5 p-4">
+                  <div className="text-sm text-muted-foreground">Recommend rate</div>
+                  <div className="mt-2 text-3xl font-bold">{recommendRate}%</div>
+                </div>
+                <div className="rounded-2xl border border-border bg-secondary/5 p-4">
+                  <div className="text-sm text-muted-foreground">Review load</div>
+                  <div className="mt-2 text-3xl font-bold">{feedback.length}</div>
+                </div>
+              </div>
+
+              <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                This keeps feedback visible alongside the scorecard, so every next step feels connected to real user
+                input.
+              </p>
+            </div>
+
             {results.length > 1 && (
-              <div>
-                <h3 className="text-xl font-bold mb-4">Past Assessments</h3>
+              <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm uppercase tracking-[0.25em] text-primary">History</p>
+                    <h3 className="text-xl font-bold">Past assessments</h3>
+                  </div>
+                  <Clock3 className="h-5 w-5 text-primary" />
+                </div>
                 <div className="space-y-3">
                   {results.slice(1).map((result) => (
                     <div
                       key={result.id}
-                      className="flex items-center justify-between p-4 bg-card border border-border rounded-lg hover:shadow-md transition-shadow"
+                      className="flex items-center justify-between rounded-2xl border border-border bg-secondary/5 p-4 transition-colors hover:bg-secondary/10"
                     >
                       <div>
                         <p className="font-medium">{result.title}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(result.created_at).toLocaleDateString()}
-                        </p>
+                        <p className="text-sm text-muted-foreground">{formatDate(result.created_at)}</p>
                       </div>
                       <div className="text-2xl font-bold text-primary">{result.score}</div>
                     </div>
@@ -423,8 +613,10 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-        )}
-      </div>
+        </section>
+      </main>
+
+      <Footer />
     </div>
   )
 }

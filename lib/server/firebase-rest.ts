@@ -21,6 +21,14 @@ type FirebaseIdentityLookupResponse = {
   }>
 }
 
+type FirestoreDocumentResponse = {
+  documents?: Array<{
+    name?: string
+    fields?: Record<string, unknown>
+  }>
+  nextPageToken?: string
+}
+
 let cachedAccessToken: { token: string; expiresAt: number } | null = null
 
 function getProjectId() {
@@ -154,6 +162,45 @@ function toFirestoreValue(value: unknown) {
   return { stringValue: String(value) }
 }
 
+function fromFirestoreValue(value: any): unknown {
+  if (value == null || typeof value !== 'object') {
+    return value
+  }
+
+  if ('stringValue' in value) return value.stringValue
+  if ('integerValue' in value) return Number(value.integerValue)
+  if ('doubleValue' in value) return Number(value.doubleValue)
+  if ('booleanValue' in value) return Boolean(value.booleanValue)
+  if ('timestampValue' in value) return value.timestampValue
+  if ('nullValue' in value) return null
+
+  if ('arrayValue' in value) {
+    return (value.arrayValue?.values || []).map((entry: any) => fromFirestoreValue(entry))
+  }
+
+  if ('mapValue' in value) {
+    const fields = value.mapValue?.fields || {}
+    return Object.fromEntries(
+      Object.entries(fields).map(([key, entry]) => [key, fromFirestoreValue(entry)])
+    )
+  }
+
+  return value
+}
+
+function fromFirestoreDocument(doc: { name?: string; fields?: Record<string, unknown> }) {
+  const path = doc.name || ''
+  const id = path.split('/').pop() || ''
+  const fields = doc.fields || {}
+
+  return {
+    id,
+    ...Object.fromEntries(
+      Object.entries(fields).map(([key, value]) => [key, fromFirestoreValue(value)])
+    ),
+  }
+}
+
 export async function verifyFirebaseIdToken(idToken: string) {
   const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY
   if (!apiKey) {
@@ -221,4 +268,38 @@ export async function createBookingRecord(input: BookingSubmission) {
   }
 
   return response.json()
+}
+
+export async function listCollectionDocuments(collectionId: string) {
+  const { projectId } = getServiceAccountConfig()
+  const accessToken = await getServiceAccountAccessToken()
+  const documents: Array<Record<string, unknown> & { id: string }> = []
+  let pageToken: string | undefined
+
+  do {
+    const url = new URL(
+      `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${collectionId}`
+    )
+    url.searchParams.set('pageSize', '1000')
+    if (pageToken) {
+      url.searchParams.set('pageToken', pageToken)
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Failed to list ${collectionId}: ${errorText}`)
+    }
+
+    const payload = (await response.json()) as FirestoreDocumentResponse
+    documents.push(...(payload.documents || []).map((doc) => fromFirestoreDocument(doc)))
+    pageToken = payload.nextPageToken
+  } while (pageToken)
+
+  return documents
 }
