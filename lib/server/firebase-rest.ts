@@ -12,6 +12,7 @@ type BookingSubmission = {
   notes: string
   status: 'pending'
   createdAt: string
+  paymentId?: string
 }
 
 type FirebaseIdentityLookupResponse = {
@@ -257,6 +258,7 @@ export async function createBookingRecord(input: BookingSubmission) {
           notes: toFirestoreValue(input.notes),
           status: toFirestoreValue(input.status),
           created_at: toFirestoreValue(input.createdAt),
+          payment_id: toFirestoreValue(input.paymentId),
         },
       }),
     }

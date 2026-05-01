@@ -16,6 +16,7 @@ const bookingSchema = z.object({
   time: z.string().trim().min(1).max(20),
   booking_date: z.string().datetime().optional(),
   notes: z.string().trim().max(2000).optional().default(''),
+  payment_id: z.string().optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -56,6 +57,7 @@ export async function POST(request: NextRequest) {
       notes: `Company: ${body.company}\nPhone: ${body.phone}\n\n${body.notes}`.trim(),
       status: 'pending',
       createdAt: new Date().toISOString(),
+      paymentId: body.payment_id,
     })
 
     return NextResponse.json({ id: result.name }, { status: 201 })

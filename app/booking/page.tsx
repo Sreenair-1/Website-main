@@ -57,6 +57,16 @@ export default function BookingPage() {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement('script')
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+      script.onload = () => resolve(true)
+      script.onerror = () => resolve(false)
+      document.body.appendChild(script)
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -74,36 +84,86 @@ export default function BookingPage() {
         throw new Error('Please choose a valid date and time')
       }
 
-      const authToken = user ? await user.getIdToken() : null
-      const response = await fetch('/api/bookings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          company: formData.company,
-          topic: formData.topic,
-          date: formData.date,
-          time: formData.time,
-          notes: formData.notes,
-          booking_date: bookingDate.toISOString(),
-        }),
-      })
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null)
-        throw new Error(payload?.error || 'Failed to book consultation')
+      // 1. Load Razorpay Script
+      const isScriptLoaded = await loadRazorpayScript()
+      if (!isScriptLoaded) {
+        throw new Error('Failed to load Razorpay. Please check your internet connection.')
       }
 
-      setSubmitted(true)
+      // 2. Create Razorpay Order (100 Rs Split Payment)
+      const orderRes = await fetch('/api/razorpay', { method: 'POST' })
+      if (!orderRes.ok) {
+        throw new Error('Failed to create payment order')
+      }
+      const { order } = await orderRes.json()
+
+      // 3. Open Razorpay Checkout
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'your_key_id_here',
+        amount: order.amount,
+        currency: order.currency,
+        name: 'Consultation Booking',
+        description: `Booking for ${formData.topic}`,
+        order_id: order.id,
+        handler: async function (response: any) {
+          // Payment Successful, now save the booking
+          try {
+            const authToken = user ? await user.getIdToken() : null
+            const bookingResponse = await fetch('/api/bookings', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+              },
+              body: JSON.stringify({
+                name: formData.name,
+                email: formData.email,
+                phone: formData.phone,
+                company: formData.company,
+                topic: formData.topic,
+                date: formData.date,
+                time: formData.time,
+                notes: formData.notes,
+                booking_date: bookingDate.toISOString(),
+                payment_id: response.razorpay_payment_id, // Save the payment ID
+              }),
+            })
+
+            if (!bookingResponse.ok) {
+              const payload = await bookingResponse.json().catch(() => null)
+              throw new Error(payload?.error || 'Failed to save booking data')
+            }
+
+            setSubmitted(true)
+          } catch (err) {
+             console.error('Booking save error after payment:', err)
+             alert('Payment was successful, but booking failed to save. Please contact support with Payment ID: ' + response.razorpay_payment_id)
+          } finally {
+             setSaving(false)
+          }
+        },
+        prefill: {
+          name: formData.name,
+          email: formData.email,
+          contact: formData.phone || '',
+        },
+        theme: {
+          color: '#3399cc',
+        },
+      }
+
+      const paymentObject = new (window as any).Razorpay(options)
+      paymentObject.on('payment.failed', function (response: any) {
+        setSaving(false)
+        setError(`Payment failed: ${response.error.description}`)
+      })
+      
+      paymentObject.open()
+      
+      // Do not setSaving(false) here, wait for payment handler
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to book consultation')
-      console.error('Booking error:', err)
-    } finally {
+      setError(err instanceof Error ? err.message : 'Failed to process request')
+      console.error('Process error:', err)
       setSaving(false)
     }
   }
@@ -321,7 +381,7 @@ export default function BookingPage() {
               disabled={saving}
               className="w-full rounded-md bg-primary py-3 font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {saving ? 'Booking...' : 'Schedule Consultation'}
+              {saving ? 'Processing...' : 'Pay 100 Rs & Book Consultation'}
             </button>
 
             <p className="text-center text-sm text-muted-foreground">
